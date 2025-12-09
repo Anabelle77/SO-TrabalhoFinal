@@ -1,0 +1,38 @@
+{
+    "seed": 1,
+    "vm_count": 1,
+    "vm_cache_size": 3,
+    "host_cache_size": 2,
+    "vm_cache_policy": "FIFO",
+    "host_cache_policy": "FIFO",
+    "vm_latency": 1,
+    "host_latency": 4,
+    "disk_latency": 15,
+
+    "workload": {
+        "mode": "provided",
+        "accesses": [
+            {"vm": 0, "file": "A"},
+            {"vm": 0, "file": "B"},
+            {"vm": 0, "file": "C"},
+            {"vm": 0, "file": "A"},
+            {"vm": 0, "file": "D"},
+            {"vm": 0, "file": "E"},
+            {"vm": 0, "file": "A"},
+            {"vm": 0, "file": "B"},
+            {"vm": 0, "file": "F"},
+            {"vm": 0, "file": "C"},
+            {"vm": 0, "file": "A"},
+            {"vm": 0, "file": "D"},
+            {"vm": 0, "file": "B"},
+            {"vm": 0, "file": "G"},
+            {"vm": 0, "file": "E"},
+            {"vm": 0, "file": "C"},
+            {"vm": 0, "file": "B"},
+            {"vm": 0, "file": "A"}
+        ]
+    },
+
+    "output_json": "results.json",
+    "output_csv": "results.csv"
+}

@@ -1,0 +1,196 @@
+{
+    "vms": [
+        {
+            "vm_id": 0,
+            "accesses": 18,
+            "vm_hits": 1,
+            "host_hits": 0,
+            "disk_hits": 17,
+            "latency": 273,
+            "vm_cache_info": {
+                "capacity": 3,
+                "policy": "FIFO",
+                "evictions": 14,
+                "insertions": 17
+            }
+        }
+    ],
+    "host": {
+        "host_hits": 0,
+        "disk_fetches": 17,
+        "host_cache_info": {
+            "capacity": 2,
+            "policy": "FIFO",
+            "evictions": 15,
+            "insertions": 17
+        }
+    },
+    "totals": {
+        "total_accesses": 18,
+        "total_latency": 273
+    },
+    "access_log": [
+        {
+            "step": 0,
+            "vm": 0,
+            "file": "A",
+            "where": "disk",
+            "latency": 16,
+            "vm_cache_size": 3,
+            "host_cache_size": 2
+        },
+        {
+            "step": 1,
+            "vm": 0,
+            "file": "B",
+            "where": "disk",
+            "latency": 16,
+            "vm_cache_size": 3,
+            "host_cache_size": 2
+        },
+        {
+            "step": 2,
+            "vm": 0,
+            "file": "C",
+            "where": "disk",
+            "latency": 16,
+            "vm_cache_size": 3,
+            "host_cache_size": 2
+        },
+        {
+            "step": 3,
+            "vm": 0,
+            "file": "A",
+            "where": "vm",
+            "latency": 1,
+            "vm_cache_size": 3,
+            "host_cache_size": 2
+        },
+        {
+            "step": 4,
+            "vm": 0,
+            "file": "D",
+            "where": "disk",
+            "latency": 16,
+            "vm_cache_size": 3,
+            "host_cache_size": 2
+        },
+        {
+            "step": 5,
+            "vm": 0,
+            "file": "E",
+            "where": "disk",
+            "latency": 16,
+            "vm_cache_size": 3,
+            "host_cache_size": 2
+        },
+        {
+            "step": 6,
+            "vm": 0,
+            "file": "A",
+            "where": "disk",
+            "latency": 16,
+            "vm_cache_size": 3,
+            "host_cache_size": 2
+        },
+        {
+            "step": 7,
+            "vm": 0,
+            "file": "B",
+            "where": "disk",
+            "latency": 16,
+            "vm_cache_size": 3,
+            "host_cache_size": 2
+        },
+        {
+            "step": 8,
+            "vm": 0,
+            "file": "F",
+            "where": "disk",
+            "latency": 16,
+            "vm_cache_size": 3,
+            "host_cache_size": 2
+        },
+        {
+            "step": 9,
+            "vm": 0,
+            "file": "C",
+            "where": "disk",
+            "latency": 16,
+            "vm_cache_size": 3,
+            "host_cache_size": 2
+        },
+        {
+            "step": 10,
+            "vm": 0,
+            "file": "A",
+            "where": "disk",
+            "latency": 16,
+            "vm_cache_size": 3,
+            "host_cache_size": 2
+        },
+        {
+            "step": 11,
+            "vm": 0,
+            "file": "D",
+            "where": "disk",
+            "latency": 16,
+            "vm_cache_size": 3,
+            "host_cache_size": 2
+        },
+        {
+            "step": 12,
+            "vm": 0,
+            "file": "B",
+            "where": "disk",
+            "latency": 16,
+            "vm_cache_size": 3,
+            "host_cache_size": 2
+        },
+        {
+            "step": 13,
+            "vm": 0,
+            "file": "G",
+            "where": "disk",
+            "latency": 16,
+            "vm_cache_size": 3,
+            "host_cache_size": 2
+        },
+        {
+            "step": 14,
+            "vm": 0,
+            "file": "E",
+            "where": "disk",
+            "latency": 16,
+            "vm_cache_size": 3,
+            "host_cache_size": 2
+        },
+        {
+            "step": 15,
+            "vm": 0,
+            "file": "C",
+            "where": "disk",
+            "latency": 16,
+            "vm_cache_size": 3,
+            "host_cache_size": 2
+        },
+        {
+            "step": 16,
+            "vm": 0,
+            "file": "B",
+            "where": "disk",
+            "latency": 16,
+            "vm_cache_size": 3,
+            "host_cache_size": 2
+        },
+        {
+            "step": 17,
+            "vm": 0,
+            "file": "A",
+            "where": "disk",
+            "latency": 16,
+            "vm_cache_size": 3,
+            "host_cache_size": 2
+        }
+    ]
+}
