@@ -34,8 +34,7 @@ class LRUCache(CacheBase):
         return False
 
     def put(self, key):
-        if self.capacity == 0:
-            return
+        if self.capacity == 0: return
         if key in self.od:
             self.od.move_to_end(key)
             return
@@ -55,10 +54,8 @@ class FIFOCache(CacheBase):
         return key in self.set
 
     def put(self, key):
-        if self.capacity == 0:
-            return
-        if key in self.set:
-            return
+        if self.capacity == 0: return
+        if key in self.set: return
         if len(self.queue) >= self.capacity:
             old = self.queue.popleft()
             self.set.remove(old)
@@ -68,47 +65,61 @@ class FIFOCache(CacheBase):
         self.insertions += 1
 
 class LFUCache(CacheBase):
+    """
+    LFU CORRIGIDO: Usa um contador lógico (timer) para desempatar frequências iguais.
+    Remove o item com menor frequência e, em caso de empate, o mais antigo (LRU logic).
+    """
     def __init__(self, capacity: int):
         super().__init__(capacity, "LFU")
         self.freq = defaultdict(int)
         self.storage = set()
+        self.timer = 0
+        self.last_access = {} 
 
     def get(self, key):
         if key in self.storage:
             self.freq[key] += 1
+            self.timer += 1
+            self.last_access[key] = self.timer
             return True
         return False
 
     def put(self, key):
-        if self.capacity == 0:
-            return
+        if self.capacity == 0: return
+        
+        # Se já existe, atualiza
         if key in self.storage:
             self.freq[key] += 1
+            self.timer += 1
+            self.last_access[key] = self.timer
             return
+        
+        # Se precisa inserir novo e está cheio
         if len(self.storage) >= self.capacity:
-            least = min(self.storage, key=lambda k: (self.freq[k], k))
-            self.storage.remove(least)
-            del self.freq[least]
+            # Critério de remoção: Menor Frequência -> Menor Last Access (Mais antigo)
+            victim = min(self.storage, key=lambda k: (self.freq[k], self.last_access[k]))
+            
+            self.storage.remove(victim)
+            del self.freq[victim]
+            del self.last_access[victim]
             self.evictions += 1
+            
         self.storage.add(key)
         self.freq[key] = 1
+        self.timer += 1
+        self.last_access[key] = self.timer
         self.insertions += 1
 
 def make_cache(capacity: int, policy: str) -> CacheBase:
     p = policy.upper()
-    if p == "LRU":
-        return LRUCache(capacity)
-    elif p == "FIFO":
-        return FIFOCache(capacity)
-    elif p == "LFU":
-        return LFUCache(capacity)
-    else:
-        raise ValueError(f"Unknown cache policy: {policy}")
+    if p == "LRU": return LRUCache(capacity)
+    elif p == "FIFO": return FIFOCache(capacity)
+    elif p == "LFU": return LFUCache(capacity)
+    else: raise ValueError(f"Unknown cache policy: {policy}")
 
 class Disk:
     def __init__(self, latency: int):
         self.latency = int(latency)
-        self.storage = {}
 
     def fetch(self, file_id: str) -> Tuple[str, int]:
         return (f"DATA({file_id})", self.latency)
@@ -122,10 +133,6 @@ class Hypervisor:
         self.disk_fetches = 0
 
     def fetch(self, file_id: str) -> Tuple[str, str, int]:
-        """
-        Returns (where_from, content, latency)
-        where_from: "host" or "disk"
-        """
         if self.host_cache.get(file_id):
             self.host_hits += 1
             return ("host", f"DATA({file_id})", self.host_latency)
@@ -145,14 +152,8 @@ class VM:
         self.host_hits = 0
         self.disk_hits = 0
         self.latency = 0
-        self.evictions = 0
 
     def access(self, file_id: str, promote_to_vm: bool = True):
-        """
-        Try VM cache -> Host cache -> Disk.
-        promote_to_vm: when host hit/disk fetch occurs we insert content into VM cache.
-        Returns tuple (where_from, latency)
-        """
         self.accesses += 1
         if self.cache.get(file_id):
             self.vm_hits += 1
@@ -161,10 +162,8 @@ class VM:
 
         where, content, latency = self.hypervisor.fetch(file_id)
         total_latency = latency + self.vm_latency
-        if where == "host":
-            self.host_hits += 1
-        else:
-            self.disk_hits += 1
+        if where == "host": self.host_hits += 1
+        else: self.disk_hits += 1
 
         if promote_to_vm:
             self.cache.put(file_id)
@@ -207,18 +206,13 @@ class Simulator:
             rnd = wcfg.get("random", {})
             length = rnd.get("length", 100)
             files = rnd.get("files", ["A","B","C","D","E","F","G"])
-            vm_probs = rnd.get("vm_access_probabilities", None)
             res = []
             for _ in range(length):
-                if vm_probs:
-                    vm = random.choices(range(self.cfg["vm_count"]), weights=vm_probs, k=1)[0]
-                else:
-                    vm = random.randrange(self.cfg["vm_count"])
+                vm = random.randrange(self.cfg["vm_count"])
                 file_id = random.choice(files)
                 res.append({"vm": vm, "file": file_id})
             return res
-        else:
-            raise ValueError("Unknown workload mode")
+        raise ValueError("Unknown workload mode")
 
     def run(self):
         for step, op in enumerate(self.workload):
@@ -253,32 +247,16 @@ class Simulator:
     def save_outputs(self, json_path: Optional[str], csv_path: Optional[str]):
         results = self.collect_results()
         if json_path:
-            with open(json_path, "w") as f:
-                json.dump(results, f, indent=4)
-            print(f"Saved JSON results to {json_path}")
+            with open(json_path, "w") as f: json.dump(results, f, indent=4)
         if csv_path:
             with open(csv_path, "w", newline="") as f:
                 fieldnames = ["step","vm","file","where","latency","vm_cache_size","host_cache_size"]
                 writer = csv.DictWriter(f, fieldnames=fieldnames)
                 writer.writeheader()
-                for row in results["access_log"]:
-                    writer.writerow(row)
-            print(f"Saved CSV access log to {csv_path}")
+                for row in results["access_log"]: writer.writerow(row)
 
 def load_config(path: str) -> Dict:
-    with open(path, "r") as f:
-        cfg = json.load(f)
-    cfg.setdefault("seed", 0)
-    cfg.setdefault("vm_count", 2)
-    cfg.setdefault("vm_cache_size", 4)
-    cfg.setdefault("host_cache_size", 8)
-    cfg.setdefault("vm_cache_policy", "LRU")
-    cfg.setdefault("host_cache_policy", "LRU")
-    cfg.setdefault("vm_latency", 1)
-    cfg.setdefault("host_latency", 5)
-    cfg.setdefault("disk_latency", 20)
-    cfg.setdefault("workload", {"mode":"random","random":{"length":100,"files":["A","B","C","D"]}})
-    return cfg
+    with open(path, "r") as f: return json.load(f)
 
 def main():
     if len(sys.argv) < 2:
@@ -288,14 +266,6 @@ def main():
     sim = Simulator(cfg)
     sim.run()
     sim.save_outputs(cfg.get("output_json","results.json"), cfg.get("output_csv","results.csv"))
-    results = sim.collect_results()
-    print("\n=== RESUMO ===")
-    print(f"Total accesses: {results['totals']['total_accesses']}")
-    print(f"Total latency: {results['totals']['total_latency']}")
-    print("Host metrics:", results["host"])
-    for v in results["vms"]:
-        print(f"VM {v['vm_id']}: accesses={v['accesses']} vm_hits={v['vm_hits']} host_hits={v['host_hits']} disk_hits={v['disk_hits']} latency={v['latency']}")
-    print("\n(Detalhes também salvos nos arquivos de saída.)")
 
 if __name__ == "__main__":
     main()
