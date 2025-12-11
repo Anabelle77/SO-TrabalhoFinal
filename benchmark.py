@@ -91,7 +91,7 @@ def plot_timeline(log: list, policy: str):
         
         fig, ax = plt.subplots(figsize=(12, 5))
         ax.scatter(steps, lats, c=c_map, s=80, alpha=0.7, edgecolors='black')
-        ax.set_title(f'Timeline Concorrente - {policy.upper()}', fontweight='bold')
+        ax.set_title(f'Timeline - {policy.upper()}', fontweight='bold')
         ax.set_xlabel('Ordem de Processamento')
         ax.set_ylabel('Latência')
         
@@ -227,7 +227,7 @@ def calculate_metrics(results: Dict) -> Dict:
 
 def print_clean_table(metrics: Dict[str, Dict]):
     print("\n" + "="*80)
-    print("RESULTADOS DA SIMULAÇÃO (CONCORRENTE)")
+    print("RESULTADOS DA SIMULAÇÃO".center(80))
     print("="*80)
     
     policies = list(metrics.keys())
@@ -299,7 +299,7 @@ def main():
     else:
         default_policy = base_config.get("vm_cache_policy", "FIFO")
         policies = [default_policy]
-        print(f"Modo: Execução Simples ({default_policy}) - Threads/Concorrente")
+        print(f"Modo: Execução Simples ({default_policy})")
         
         all_metrics = {}
         access_logs = {}

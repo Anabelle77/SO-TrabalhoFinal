@@ -1,20 +1,22 @@
 {
-    "seed": 42,
-    "vm_count": 50,
-    "vm_cache_size": 1,
-    "host_cache_size": 5,
-    "vm_cache_policy": "LRU",
-    "host_cache_policy": "LRU",
-    "vm_latency": 0,
-    "host_latency": 1,
-    "disk_latency": 100,
+    "seed": 1,
+    "vm_count": 8,
+    "vm_cache_size": 3,
+    "host_cache_size": 2,
+    "vm_cache_policy": "FIFO",
+    "host_cache_policy": "FIFO",
+    "vm_latency": 1,
+    "host_latency": 4,
+    "disk_latency": 15,
+
     "workload": {
         "mode": "random",
         "random": {
-            "length": 200,
-            "files": ["A", "B", "C", "D"]
+            "length": 50,
+            "files": ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"]
         }
     },
-    "output_json": "results_contention.json",
-    "output_csv": "results_contention.csv"
+
+    "output_json": "results.json",
+    "output_csv": "results.csv"
 }
