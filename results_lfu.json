@@ -9,7 +9,7 @@
             "latency": 99.0,
             "vm_cache_info": {
                 "capacity": 3,
-                "policy": "FIFO",
+                "policy": "LFU",
                 "evictions": 3,
                 "insertions": 6
             }
@@ -23,7 +23,7 @@
             "latency": 66.0,
             "vm_cache_info": {
                 "capacity": 3,
-                "policy": "FIFO",
+                "policy": "LFU",
                 "evictions": 1,
                 "insertions": 4
             }
@@ -32,12 +32,12 @@
             "vm_id": 2,
             "accesses": 2,
             "vm_hits": 0,
-            "host_hits": 0,
-            "disk_hits": 2,
-            "latency": 32.0,
+            "host_hits": 1,
+            "disk_hits": 1,
+            "latency": 21.0,
             "vm_cache_info": {
                 "capacity": 3,
-                "policy": "FIFO",
+                "policy": "LFU",
                 "evictions": 0,
                 "insertions": 2
             }
@@ -46,12 +46,12 @@
             "vm_id": 3,
             "accesses": 9,
             "vm_hits": 1,
-            "host_hits": 0,
-            "disk_hits": 8,
-            "latency": 129.0,
+            "host_hits": 2,
+            "disk_hits": 6,
+            "latency": 107.0,
             "vm_cache_info": {
                 "capacity": 3,
-                "policy": "FIFO",
+                "policy": "LFU",
                 "evictions": 5,
                 "insertions": 8
             }
@@ -65,7 +65,7 @@
             "latency": 65.0,
             "vm_cache_info": {
                 "capacity": 3,
-                "policy": "FIFO",
+                "policy": "LFU",
                 "evictions": 1,
                 "insertions": 4
             }
@@ -79,7 +79,7 @@
             "latency": 54.0,
             "vm_cache_info": {
                 "capacity": 3,
-                "policy": "FIFO",
+                "policy": "LFU",
                 "evictions": 1,
                 "insertions": 4
             }
@@ -93,7 +93,7 @@
             "latency": 82.0,
             "vm_cache_info": {
                 "capacity": 3,
-                "policy": "FIFO",
+                "policy": "LFU",
                 "evictions": 2,
                 "insertions": 5
             }
@@ -102,34 +102,34 @@
             "vm_id": 7,
             "accesses": 7,
             "vm_hits": 3,
-            "host_hits": 0,
-            "disk_hits": 4,
-            "latency": 67.0,
+            "host_hits": 2,
+            "disk_hits": 2,
+            "latency": 45.0,
             "vm_cache_info": {
                 "capacity": 3,
-                "policy": "FIFO",
+                "policy": "LFU",
                 "evictions": 1,
                 "insertions": 4
             }
         }
     ],
     "host": {
-        "host_hits": 1,
-        "disk_fetches": 36,
+        "host_hits": 6,
+        "disk_fetches": 31,
         "host_cache_info": {
             "capacity": 2,
-            "policy": "FIFO",
-            "evictions": 34,
-            "insertions": 36
+            "policy": "LFU",
+            "evictions": 29,
+            "insertions": 31
         },
         "lock_contention": {
-            "lock_waits": 6,
-            "total_contention_time_ms": 0.007867813110351562
+            "lock_waits": 4,
+            "total_contention_time_ms": 0.00476837158203125
         }
     },
     "totals": {
         "total_accesses": 50,
-        "total_latency": 594,
+        "total_latency": 539,
         "execution_mode": "concurrent"
     },
     "access_log": [
@@ -137,8 +137,8 @@
             "step": 0,
             "vm": 2,
             "file": "J",
-            "where": "disk",
-            "latency": 16,
+            "where": "host",
+            "latency": 5,
             "vm_cache_size": 3,
             "host_cache_size": 2,
             "thread_id": "VM-2"
@@ -167,8 +167,8 @@
             "step": 3,
             "vm": 7,
             "file": "H",
-            "where": "disk",
-            "latency": 16,
+            "where": "host",
+            "latency": 5,
             "vm_cache_size": 3,
             "host_cache_size": 2,
             "thread_id": "VM-7"
@@ -277,8 +277,8 @@
             "step": 14,
             "vm": 3,
             "file": "G",
-            "where": "disk",
-            "latency": 16,
+            "where": "host",
+            "latency": 5,
             "vm_cache_size": 3,
             "host_cache_size": 2,
             "thread_id": "VM-3"
@@ -297,8 +297,8 @@
             "step": 16,
             "vm": 3,
             "file": "H",
-            "where": "disk",
-            "latency": 16,
+            "where": "host",
+            "latency": 5,
             "vm_cache_size": 3,
             "host_cache_size": 2,
             "thread_id": "VM-3"
@@ -307,8 +307,8 @@
             "step": 17,
             "vm": 7,
             "file": "I",
-            "where": "disk",
-            "latency": 16,
+            "where": "host",
+            "latency": 5,
             "vm_cache_size": 3,
             "host_cache_size": 2,
             "thread_id": "VM-7"
@@ -377,8 +377,8 @@
             "step": 24,
             "vm": 5,
             "file": "I",
-            "where": "host",
-            "latency": 5,
+            "where": "disk",
+            "latency": 16,
             "vm_cache_size": 3,
             "host_cache_size": 2,
             "thread_id": "VM-5"
@@ -607,8 +607,8 @@
             "step": 47,
             "vm": 5,
             "file": "H",
-            "where": "disk",
-            "latency": 16,
+            "where": "host",
+            "latency": 5,
             "vm_cache_size": 3,
             "host_cache_size": 2,
             "thread_id": "VM-5"

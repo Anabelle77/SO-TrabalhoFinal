@@ -1,24 +1,12 @@
-#!/usr/bin/env python3
-"""
-Simulador de Cache Hiper-Virtualizado (CORRIGIDO)
-Correções aplicadas:
-1. Mudança de threading.Lock para threading.RLock em CacheBase para evitar deadlock
-   quando o Hypervisor e o Cache tentam adquirir o mesmo lock na mesma thread.
-2. Adição de try/finally no process_requests da VM para garantir que task_done()
-   seja sempre chamado, evitando travamento da queue.join().
-"""
-
 import sys
 import json
 import csv
 import random
 import threading
 import time
-from queue import Queue, Empty
+from queue import Queue
 from collections import OrderedDict, defaultdict, deque
 from typing import Optional, List, Dict, Tuple
-
-# ---------- Configurável: ativar sleep para latência realista (False por padrão) ----------
 SIMULATE_SLEEP = False
 
 
@@ -28,9 +16,7 @@ class CacheBase:
         self.policy = policy.upper()
         self.evictions = 0
         self.insertions = 0
-        # CORREÇÃO CRÍTICA: RLock permite que a mesma thread (Hypervisor) 
-        # adquira o lock novamente dentro dos métodos do Cache (get/put)
-        self.lock = threading.RLock() 
+        self.lock = threading.RLock()
 
     def get(self, key: str) -> bool:
         raise NotImplementedError
@@ -124,7 +110,6 @@ class LFUCache(CacheBase):
                 return
 
             if len(self.storage) >= self.capacity:
-                # Empata por última vez acessada para desempate estável
                 victim = min(self.storage, key=lambda k: (self.freq[k], self.last_access[k]))
                 self.storage.remove(victim)
                 del self.freq[victim]
@@ -171,30 +156,21 @@ class Hypervisor:
         self.disk = disk
         self.host_hits = 0
         self.disk_fetches = 0
-        self.lock = threading.Lock()  # Protege contadores
-        self.contention_time = 0.0  # Tempo esperando por locks (segundos)
+        self.lock = threading.Lock()
+        self.contention_time = 0.0
         self.lock_waits = 0
 
     def fetch(self, file_id: str) -> Tuple[str, int]:
-        """
-        Retorna (where, latency)
-        where in {"host", "disk"}
-        """
         lock_start = time.time()
-        
-        # Aqui o Hypervisor pega o lock do cache
         self.host_cache.lock.acquire()
         
         lock_wait = time.time() - lock_start
-
-        # contabiliza contenção somente se houve espera significativa (> 1 microseg)
         if lock_wait > 1e-6:
             with self.lock:
                 self.lock_waits += 1
                 self.contention_time += lock_wait
 
         try:
-            # Como agora é RLock, essa chamada interna (que faz 'with lock') não trava mais
             if self.host_cache.get(file_id):
                 with self.lock:
                     self.host_hits += 1
@@ -202,18 +178,16 @@ class Hypervisor:
                     time.sleep(self.host_latency / 1000.0)
                 return ("host", self.host_latency)
 
-            # Miss: busca no disco e insere no host cache
             content, dlat = self.disk.fetch(file_id)
             self.host_cache.put(file_id)
             with self.lock:
                 self.disk_fetches += 1
             return ("disk", dlat)
         finally:
-            # Garantir release do lock do cache do host
             try:
                 self.host_cache.lock.release()
             except RuntimeError:
-                print("[WARN] host_cache.lock.release() falhou - provavelmente já liberado")
+                print("[WARN] host_cache.lock.release() falhou")
 
 
 class VM:
@@ -229,21 +203,14 @@ class VM:
         self.latency = 0.0
         self.lock = threading.Lock()
 
-        # Para execução concorrente
         self.thread: Optional[threading.Thread] = None
         self.request_queue: Queue = Queue()
         self.access_log: List[Dict] = []
 
     def access(self, file_id: str, promote_to_vm: bool = True) -> Tuple[str, int]:
-        """
-        Retorna (where, latency)
-        where: "vm", "host" ou "disk"
-        latency: tempo em ms associado ao acesso (somente a latência específica)
-        """
         with self.lock:
             self.accesses += 1
 
-        # Primeiro tenta no cache da VM
         if self.cache.get(file_id):
             with self.lock:
                 self.vm_hits += 1
@@ -252,7 +219,6 @@ class VM:
                 time.sleep(self.vm_latency / 1000.0)
             return ("vm", self.vm_latency)
 
-        # Caso falta na VM, vai ao hypervisor
         where, latency = self.hypervisor.fetch(file_id)
         total_latency = latency + self.vm_latency
 
@@ -261,32 +227,25 @@ class VM:
                 self.host_hits += 1
             else:
                 self.disk_hits += 1
-
             if promote_to_vm:
-                # Promove o bloco para cache da VM
                 self.cache.put(file_id)
-
             self.latency += total_latency
 
         if SIMULATE_SLEEP:
-            # simula latência da VM também
             time.sleep(self.vm_latency / 1000.0)
 
         return (where, total_latency)
 
     def process_requests(self):
+        """Loop principal da Thread da VM"""
         thread_name = threading.current_thread().name
 
         while True:
-            # Espera até receber uma tarefa
             step, file_id = self.request_queue.get()
-
             try:
-                # Sentinel → terminar a thread
-                if step is None and file_id is None:
+                if step is None and file_id is None: # Sentinel
                     break
                 
-                # Processa acesso
                 where, lat = self.access(file_id)
                 self.access_log.append({
                     "step": step,
@@ -299,13 +258,11 @@ class VM:
                     "thread_id": thread_name
                 })
             except Exception as e:
-                print(f"[ERRO] VM-{self.vm_id} falhou ao processar arquivo {file_id}: {e}")
+                print(f"[ERRO] VM-{self.vm_id} erro: {e}")
             finally:
-                # CORREÇÃO: task_done deve ser chamado no finally para evitar travamento da queue
                 self.request_queue.task_done()
 
-    def start_concurrent(self):
-        """Inicia thread da VM"""
+    def start_worker(self):
         if self.thread and self.thread.is_alive():
             return
         self.thread = threading.Thread(
@@ -316,14 +273,12 @@ class VM:
         self.thread.start()
 
     def stop_and_join(self, timeout: float = 5.0):
-        """Garante que a thread será finalizada"""
         if self.thread and self.thread.is_alive():
             self.thread.join(timeout=timeout)
             if self.thread.is_alive():
-                print(f"[AVISO] Thread VM-{self.vm_id} não finalizou após {timeout}s")
+                print(f"[AVISO] Thread VM-{self.vm_id} não finalizou.")
 
     def enqueue_access(self, step: Optional[int], file_id: Optional[str]):
-        """Adiciona requisição na fila"""
         self.request_queue.put((step, file_id))
 
     def stats(self) -> Dict:
@@ -343,7 +298,6 @@ class Simulator:
     def __init__(self, cfg: Dict):
         random.seed(cfg.get("seed", 0))
         self.cfg = cfg
-        self.execution_mode = cfg.get("execution_mode", "sequential")
 
         self.disk = Disk(cfg["disk_latency"])
         self.host_cache = make_cache(cfg["host_cache_size"], cfg["host_cache_policy"])
@@ -375,81 +329,38 @@ class Simulator:
         else:
             raise ValueError("Unknown workload mode")
 
-    def run_sequential(self):
-        """Execução sequencial (um acesso por vez)"""
-        print(f"[SIMULADOR] Modo: SEQUENCIAL")
-        for op in self.workload:
-            step = op.get("step")
-            vm_id = int(op["vm"])
-            file_id = str(op["file"])
-            vm = self.vms[vm_id]
-            where, lat = vm.access(file_id)
-            self.access_log.append({
-                "step": step,
-                "vm": vm_id,
-                "file": file_id,
-                "where": where,
-                "latency": lat,
-                "vm_cache_size": vm.cache.capacity,
-                "host_cache_size": self.host_cache.capacity,
-                "thread_id": None
-            })
+    def run(self):
+        """Execução EXCLUSIVAMENTE CONCORRENTE"""
+        print(f"[SIMULADOR] Iniciando {len(self.vms)} VMs.")
+        start_time = time.time()
 
-    def run_concurrent(self):
-        """
-        Execução concorrente
-        """
-        print(f"[SIMULADOR] Modo: CONCORRENTE ({len(self.vms)} VMs em paralelo)")
-
-        # 1) Inicia workers
         for vm in self.vms:
-            vm.start_concurrent()
+            vm.start_worker()
 
-        # 2) Distribui workload para as VMs
-        print(f"[SIMULADOR] Distribuindo {len(self.workload)} acessos.")
+        print(f"[SIMULADOR] Distribuindo {len(self.workload)} acessos.\n")
         for op in self.workload:
             step = op.get("step")
             vm_id = int(op["vm"])
             file_id = str(op["file"])
             self.vms[vm_id].enqueue_access(step, file_id)
 
-        # 3) Envia sentinels: um para cada VM
         for vm in self.vms:
             vm.enqueue_access(None, None)
 
-        print(f"[SIMULADOR] Aguardando processamento (queue.join)...")
-
-        # 4) Aguarda todas as filas serem processadas
         for vm in self.vms:
             vm.request_queue.join()
 
-        # 5) Aguarda threads finalizarem
         for vm in self.vms:
             vm.stop_and_join(timeout=5.0)
 
-        print(f"[SIMULADOR] Consolidando logs.")
-
-        # Consolida logs de todas as VMs
         for vm in self.vms:
             self.access_log.extend(vm.access_log)
-
-        # Ordena por step para manter sequência temporal
         self.access_log.sort(key=lambda x: (x["step"] if x["step"] is not None else -1, x["vm"]))
-
-        print(f"[SIMULADOR] Contenção detectada: {self.hypervisor.lock_waits} esperas por lock")
-        print(f"[SIMULADOR] Tempo total em contenção: {self.hypervisor.contention_time*1000:.2f}ms")
-
-    def run(self):
-        """Executa simulação no modo configurado"""
-        start_time = time.time()
-
-        if self.execution_mode == "concurrent":
-            self.run_concurrent()
-        else:
-            self.run_sequential()
 
         elapsed = time.time() - start_time
         print(f"[SIMULADOR] Tempo de execução: {elapsed:.3f}s")
+        print(f"[SIMULADOR] Contenção detectada: {self.hypervisor.lock_waits} esperas por lock")
+        print(f"[SIMULADOR] Tempo total em contenção: {self.hypervisor.contention_time*1000:.2f}ms")
 
     def collect_results(self) -> Dict:
         vms_stats = [vm.stats() for vm in self.vms]
@@ -466,7 +377,7 @@ class Simulator:
         totals = {
             "total_accesses": len(self.workload),
             "total_latency": sum(a["latency"] for a in self.access_log),
-            "execution_mode": self.execution_mode
+            "execution_mode": "concurrent"
         }
         return {"vms": vms_stats, "host": host_metrics, "totals": totals, "access_log": self.access_log}
 
@@ -477,13 +388,12 @@ class Simulator:
                 json.dump(results, f, indent=4)
         if csv_path:
             with open(csv_path, "w", newline="") as f:
-                fieldnames = ["step", "vm", "file", "where", "latency", "vm_cache_size", "host_cache_size"]
-                if self.execution_mode == "concurrent":
-                    fieldnames.append("thread_id")
+                # Campo thread_id agora é padrão
+                fieldnames = ["step", "vm", "file", "where", "latency", 
+                              "vm_cache_size", "host_cache_size", "thread_id"]
                 writer = csv.DictWriter(f, fieldnames=fieldnames)
                 writer.writeheader()
                 for row in results["access_log"]:
-                    # padroniza campos ausentes
                     row_out = {k: row.get(k, "") for k in fieldnames}
                     writer.writerow(row_out)
 

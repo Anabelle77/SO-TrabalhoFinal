@@ -1,5 +1,6 @@
-{"seed": 1,
-    "vm_count": 3,
+{
+    "seed": 1,
+    "vm_count": 8,
     "vm_cache_size": 3,
     "host_cache_size": 2,
     "vm_cache_policy": "FIFO",
@@ -7,8 +8,6 @@
     "vm_latency": 1,
     "host_latency": 4,
     "disk_latency": 15,
-
-    "execution_mode": "concurrent",
 
     "workload": {
         "mode": "random",

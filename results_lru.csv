@@ -1,7 +1,7 @@
 step,vm,file,where,latency,vm_cache_size,host_cache_size,thread_id
 0,2,J,disk,16,3,2,VM-2
 1,1,E,disk,16,3,2,VM-1
-2,1,H,disk,16,3,2,VM-1
+2,1,H,host,5,3,2,VM-1
 3,7,H,disk,16,3,2,VM-7
 4,6,D,disk,16,3,2,VM-6
 5,1,H,vm,1,3,2,VM-1
@@ -13,10 +13,10 @@ step,vm,file,where,latency,vm_cache_size,host_cache_size,thread_id
 11,0,A,disk,16,3,2,VM-0
 12,0,I,disk,16,3,2,VM-0
 13,0,G,disk,16,3,2,VM-0
-14,3,G,disk,16,3,2,VM-3
+14,3,G,host,5,3,2,VM-3
 15,0,I,vm,1,3,2,VM-0
-16,3,H,disk,16,3,2,VM-3
-17,7,I,disk,16,3,2,VM-7
+16,3,H,host,5,3,2,VM-3
+17,7,I,host,5,3,2,VM-7
 18,3,F,disk,16,3,2,VM-3
 19,3,D,disk,16,3,2,VM-3
 20,7,E,disk,16,3,2,VM-7

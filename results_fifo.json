@@ -32,9 +32,9 @@
             "vm_id": 2,
             "accesses": 2,
             "vm_hits": 0,
-            "host_hits": 0,
-            "disk_hits": 2,
-            "latency": 32.0,
+            "host_hits": 1,
+            "disk_hits": 1,
+            "latency": 21.0,
             "vm_cache_info": {
                 "capacity": 3,
                 "policy": "FIFO",
@@ -46,9 +46,9 @@
             "vm_id": 3,
             "accesses": 9,
             "vm_hits": 1,
-            "host_hits": 0,
-            "disk_hits": 8,
-            "latency": 129.0,
+            "host_hits": 2,
+            "disk_hits": 6,
+            "latency": 107.0,
             "vm_cache_info": {
                 "capacity": 3,
                 "policy": "FIFO",
@@ -114,22 +114,22 @@
         }
     ],
     "host": {
-        "host_hits": 1,
-        "disk_fetches": 36,
+        "host_hits": 4,
+        "disk_fetches": 33,
         "host_cache_info": {
             "capacity": 2,
             "policy": "FIFO",
-            "evictions": 34,
-            "insertions": 36
+            "evictions": 31,
+            "insertions": 33
         },
         "lock_contention": {
-            "lock_waits": 6,
-            "total_contention_time_ms": 0.007867813110351562
+            "lock_waits": 1,
+            "total_contention_time_ms": 0.0011920928955078125
         }
     },
     "totals": {
         "total_accesses": 50,
-        "total_latency": 594,
+        "total_latency": 561,
         "execution_mode": "concurrent"
     },
     "access_log": [
@@ -137,8 +137,8 @@
             "step": 0,
             "vm": 2,
             "file": "J",
-            "where": "disk",
-            "latency": 16,
+            "where": "host",
+            "latency": 5,
             "vm_cache_size": 3,
             "host_cache_size": 2,
             "thread_id": "VM-2"
@@ -277,8 +277,8 @@
             "step": 14,
             "vm": 3,
             "file": "G",
-            "where": "disk",
-            "latency": 16,
+            "where": "host",
+            "latency": 5,
             "vm_cache_size": 3,
             "host_cache_size": 2,
             "thread_id": "VM-3"
@@ -297,8 +297,8 @@
             "step": 16,
             "vm": 3,
             "file": "H",
-            "where": "disk",
-            "latency": 16,
+            "where": "host",
+            "latency": 5,
             "vm_cache_size": 3,
             "host_cache_size": 2,
             "thread_id": "VM-3"
