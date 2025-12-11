@@ -274,13 +274,13 @@ def main():
     
     if args.all:
         policies = ['FIFO', 'LRU', 'LFU']
-        print(f"Modo: Benchmark Comparativo ({', '.join(policies)}) - Threads/Concorrente")
+        print(f"Modo: Benchmark Comparativo ({', '.join(policies)})")
         
         all_metrics = {}
         access_logs = {}
         
         for policy in policies:
-            print(f"-> Simulação {policy}:\n")
+            print(f"\n-> Simulação {policy}:")
             results = run_simulation(base_config.copy(), policy, policy.lower())
             all_metrics[policy] = calculate_metrics(results)
             access_logs[policy] = results['access_log']

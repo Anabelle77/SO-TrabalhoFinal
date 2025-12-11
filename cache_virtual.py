@@ -237,7 +237,7 @@ class VM:
         return (where, total_latency)
 
     def process_requests(self):
-        """Loop principal da Thread da VM"""
+
         thread_name = threading.current_thread().name
 
         while True:
@@ -330,7 +330,6 @@ class Simulator:
             raise ValueError("Unknown workload mode")
 
     def run(self):
-        """Execução EXCLUSIVAMENTE CONCORRENTE"""
         print(f"[SIMULADOR] Iniciando {len(self.vms)} VMs.")
         start_time = time.time()
 
