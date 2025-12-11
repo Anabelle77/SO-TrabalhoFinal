@@ -1,10 +1,3 @@
-#!/usr/bin/env python3
-"""
-Script Benchmark e Visualização (CORRIGIDO)
-- Adicionado backend 'Agg' para garantir geração de PNGs sem interface gráfica.
-- Correção de imports para evitar erros de display.
-"""
-
 import sys
 import json
 import subprocess
@@ -12,17 +5,10 @@ import argparse
 from pathlib import Path
 from typing import Dict
 
-# --- CORREÇÃO CRÍTICA: Configurar Backend antes de importar pyplot ---
 import matplotlib
-# Força o uso do backend 'Agg' (Anti-Grain Geometry), que é não-interativo
-# e serve especificamente para escrever em arquivos (PNG, PDF) sem abrir janelas.
 matplotlib.use('Agg') 
 import matplotlib.pyplot as plt
 import numpy as np
-
-# ==========================================
-# 1. FUNÇÕES DE VISUALIZAÇÃO
-# ==========================================
 
 def plot_hit_rates(metrics: dict):
     """Gera gráfico de barras de Hit Rates"""
@@ -49,7 +35,6 @@ def plot_hit_rates(metrics: dict):
         ax.grid(axis='y', alpha=0.3)
         plt.tight_layout()
         plt.savefig('graph_hit_rates.png', dpi=300)
-        plt.close(fig) # Importante fechar a figura explicitamente
         print("     [✓] Salvo.")
     except Exception as e:
         print(f"     [X] Erro: {e}")
@@ -64,7 +49,6 @@ def plot_latency_comparison(metrics: dict):
         avg_lat = [metrics[p]['avg_latency'] for p in policies]
         
         colors = ['#e74c3c', '#3498db', '#2ecc71']
-        # Ajusta cores se houver menos políticas que cores
         if len(policies) > len(colors):
             colors = colors * (len(policies) // len(colors) + 1)
         
@@ -108,7 +92,6 @@ def plot_timeline(log: list, policy: str):
         print(f"  -> Gerando graph_timeline_{policy.lower()}.png...")
         steps = [e['step'] for e in log]
         lats = [e['latency'] for e in log]
-        # Mapa seguro com fallback
         colors_map = {'vm': '#2ecc71', 'host': '#3498db', 'disk': '#e74c3c'}
         c_map = [colors_map.get(e['where'], '#000000') for e in log]
         
@@ -145,7 +128,6 @@ def plot_efficiency(metrics: dict):
         
         ax.bar(x, vm_rates, label='VM Cache', color='#2ecc71')
         ax.bar(x, host_rates, bottom=vm_rates, label='Host Cache', color='#3498db')
-        # A base para o disco é a soma dos anteriores
         ax.bar(x, disk_rates, bottom=vm_rates+host_rates, label='Disco', color='#e74c3c')
         
         ax.set_ylabel('Distribuição (%)')
@@ -164,7 +146,6 @@ def plot_efficiency(metrics: dict):
 def plot_contention(metrics: dict):
     """Gráfico de contenção de locks (apenas modo concurrent)"""
     try:
-        # Filtra apenas resultados concorrentes que tenham dados de lock
         concurrent_metrics = {k: v for k, v in metrics.items() if v.get('lock_waits', 0) > 0}
         
         if not concurrent_metrics:
@@ -206,7 +187,6 @@ def plot_mode_comparison(seq_metrics: dict, conc_metrics: dict):
         x = np.arange(len(policies))
         width = 0.35
         
-        # 1. VM Hit Rate
         seq_vm = [seq_metrics[p]['vm_hit_rate'] for p in policies]
         conc_vm = [conc_metrics[p]['vm_hit_rate'] for p in policies]
         ax1.bar(x - width/2, seq_vm, width, label='Sequential', color='#3498db')
@@ -216,7 +196,6 @@ def plot_mode_comparison(seq_metrics: dict, conc_metrics: dict):
         ax1.legend()
         ax1.grid(axis='y', alpha=0.3)
         
-        # 2. Host Hit Rate
         seq_host = [seq_metrics[p]['host_hit_rate'] for p in policies]
         conc_host = [conc_metrics[p]['host_hit_rate'] for p in policies]
         ax2.bar(x - width/2, seq_host, width, label='Sequential', color='#3498db')
@@ -226,7 +205,6 @@ def plot_mode_comparison(seq_metrics: dict, conc_metrics: dict):
         ax2.legend()
         ax2.grid(axis='y', alpha=0.3)
         
-        # 3. Total Evictions
         seq_evict = [seq_metrics[p]['total_evictions'] for p in policies]
         conc_evict = [conc_metrics[p]['total_evictions'] for p in policies]
         ax3.bar(x - width/2, seq_evict, width, label='Sequential', color='#3498db')
@@ -236,7 +214,6 @@ def plot_mode_comparison(seq_metrics: dict, conc_metrics: dict):
         ax3.legend()
         ax3.grid(axis='y', alpha=0.3)
         
-        # 4. Latência Média
         seq_lat = [seq_metrics[p]['avg_latency'] for p in policies]
         conc_lat = [conc_metrics[p]['avg_latency'] for p in policies]
         ax4.bar(x - width/2, seq_lat, width, label='Sequential', color='#3498db')
@@ -252,10 +229,6 @@ def plot_mode_comparison(seq_metrics: dict, conc_metrics: dict):
         print("     [✓] Salvo.")
     except Exception as e:
         print(f"     [X] Erro: {e}")
-
-# ==========================================
-# 2. LÓGICA DE EXECUÇÃO
-# ==========================================
 
 def load_config(path: str) -> Dict:
     with open(path) as f: return json.load(f)
@@ -273,7 +246,6 @@ def run_simulation(config: Dict, policy: str, output_suffix: str, mode: str = No
     temp_config = f'config_temp_{output_suffix}.json'
     with open(temp_config, 'w') as f: json.dump(config, f, indent=4)
     
-    # Chama o script de simulação (assume que cache_virtual.py está no mesmo diretório)
     try:
         subprocess.run([sys.executable, 'cache_virtual.py', temp_config], check=True)
     except subprocess.CalledProcessError as e:
@@ -282,7 +254,6 @@ def run_simulation(config: Dict, policy: str, output_suffix: str, mode: str = No
         
     with open(config['output_json']) as f: results = json.load(f)
     
-    # Limpeza
     try:
         Path(temp_config).unlink()
     except:
@@ -376,7 +347,6 @@ def main():
         print(f"Erro: Arquivo '{args.config}' não encontrado.")
         sys.exit(1)
     
-    # Modo de comparação Sequential vs Concurrent
     if args.compare_modes:
         policies = ['FIFO', 'LRU', 'LFU']
         print(f"Modo: Comparação Sequential vs Concurrent ({', '.join(policies)})")
@@ -406,7 +376,6 @@ def main():
         plot_mode_comparison(seq_metrics, conc_metrics)
         plot_contention(conc_metrics)
         
-    # Modo benchmark normal
     elif args.all:
         policies = ['FIFO', 'LRU', 'LFU']
         mode = base_config.get("execution_mode", "sequential")
@@ -433,7 +402,6 @@ def main():
         for policy in policies:
             plot_timeline(access_logs[policy], policy)
     
-    # Modo simples
     else:
         default_policy = base_config.get("vm_cache_policy", "FIFO")
         mode = base_config.get("execution_mode", "sequential")
