@@ -1,6 +1,5 @@
-{
-    "seed": 1,
-    "vm_count": 1,
+{"seed": 1,
+    "vm_count": 3,
     "vm_cache_size": 3,
     "host_cache_size": 2,
     "vm_cache_policy": "FIFO",
@@ -9,28 +8,14 @@
     "host_latency": 4,
     "disk_latency": 15,
 
+    "execution_mode": "concurrent",
+
     "workload": {
-        "mode": "provided",
-        "accesses": [
-            {"vm": 0, "file": "A"},
-            {"vm": 0, "file": "B"},
-            {"vm": 0, "file": "C"},
-            {"vm": 0, "file": "A"},
-            {"vm": 0, "file": "D"},
-            {"vm": 0, "file": "E"},
-            {"vm": 0, "file": "A"},
-            {"vm": 0, "file": "B"},
-            {"vm": 0, "file": "F"},
-            {"vm": 0, "file": "C"},
-            {"vm": 0, "file": "A"},
-            {"vm": 0, "file": "D"},
-            {"vm": 0, "file": "B"},
-            {"vm": 0, "file": "G"},
-            {"vm": 0, "file": "E"},
-            {"vm": 0, "file": "C"},
-            {"vm": 0, "file": "B"},
-            {"vm": 0, "file": "A"}
-        ]
+        "mode": "random",
+        "random": {
+            "length": 50,
+            "files": ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"]
+        }
     },
 
     "output_json": "results.json",

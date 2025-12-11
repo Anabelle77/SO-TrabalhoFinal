@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 """
-Script Benchmark e Visualização
-Uso: 
-    python3 benchmark_script.py config.json          (Roda apenas a política do JSON)
-    python3 benchmark_script.py config.json --all    (Roda FIFO, LRU e LFU e compara)
+Script Benchmark e Visualização (CORRIGIDO)
+- Adicionado backend 'Agg' para garantir geração de PNGs sem interface gráfica.
+- Correção de imports para evitar erros de display.
 """
 
 import sys
@@ -12,6 +11,12 @@ import subprocess
 import argparse
 from pathlib import Path
 from typing import Dict
+
+# --- CORREÇÃO CRÍTICA: Configurar Backend antes de importar pyplot ---
+import matplotlib
+# Força o uso do backend 'Agg' (Anti-Grain Geometry), que é não-interativo
+# e serve especificamente para escrever em arquivos (PNG, PDF) sem abrir janelas.
+matplotlib.use('Agg') 
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -22,6 +27,7 @@ import numpy as np
 def plot_hit_rates(metrics: dict):
     """Gera gráfico de barras de Hit Rates"""
     try:
+        print("  -> Gerando graph_hit_rates.png...")
         fig, ax = plt.subplots(figsize=(10, 6))
         policies = list(metrics.keys())
         x = np.arange(len(policies))
@@ -37,25 +43,30 @@ def plot_hit_rates(metrics: dict):
         
         ax.set_ylabel('Taxa de Acerto (%)', fontsize=12)
         ax.set_title('Hit Rates por Nível de Cache', fontsize=14, fontweight='bold')
-        ax.set_xticks(x); ax.set_xticklabels(policies)
-        ax.legend(); ax.grid(axis='y', alpha=0.3)
+        ax.set_xticks(x)
+        ax.set_xticklabels(policies)
+        ax.legend()
+        ax.grid(axis='y', alpha=0.3)
         plt.tight_layout()
         plt.savefig('graph_hit_rates.png', dpi=300)
-        print("  [V] Gráfico salvo: graph_hit_rates.png")
-        plt.close()
+        plt.close(fig) # Importante fechar a figura explicitamente
+        print("     [✓] Salvo.")
     except Exception as e:
-        print(f"Erro ao gerar graph_hit_rates: {e}")
+        print(f"     [X] Erro: {e}")
 
 def plot_latency_comparison(metrics: dict):
     """Gera gráficos de latência"""
     try:
+        print("  -> Gerando graph_latency.png...")
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
         policies = list(metrics.keys())
         total_lat = [metrics[p]['total_latency'] for p in policies]
         avg_lat = [metrics[p]['avg_latency'] for p in policies]
         
-        # Cores dinâmicas (se for 1 barra ou 3)
-        colors = ['#e74c3c', '#3498db', '#2ecc71'] if len(policies) > 1 else ['#3498db']
+        colors = ['#e74c3c', '#3498db', '#2ecc71']
+        # Ajusta cores se houver menos políticas que cores
+        if len(policies) > len(colors):
+            colors = colors * (len(policies) // len(colors) + 1)
         
         ax1.bar(policies, total_lat, color=colors[:len(policies)])
         ax1.set_title('Latência Total', fontweight='bold')
@@ -67,14 +78,15 @@ def plot_latency_comparison(metrics: dict):
         
         plt.tight_layout()
         plt.savefig('graph_latency.png', dpi=300)
-        print("  [V] Gráfico salvo: graph_latency.png")
-        plt.close()
+        plt.close(fig)
+        print("     [✓] Salvo.")
     except Exception as e:
-        print(f"Erro ao gerar graph_latency: {e}")
+        print(f"     [X] Erro: {e}")
 
 def plot_evictions(metrics: dict):
     """Gera gráfico de Evictions"""
     try:
+        print("  -> Gerando graph_evictions.png...")
         fig, ax = plt.subplots(figsize=(8, 5))
         policies = list(metrics.keys())
         evictions = [metrics[p]['total_evictions'] for p in policies]
@@ -85,18 +97,20 @@ def plot_evictions(metrics: dict):
         ax.bar_label(bars)
         plt.tight_layout()
         plt.savefig('graph_evictions.png', dpi=300)
-        print("  [V] Gráfico salvo: graph_evictions.png")
-        plt.close()
+        plt.close(fig)
+        print("     [✓] Salvo.")
     except Exception as e:
-        print(f"Erro ao gerar graph_evictions: {e}")
+        print(f"     [X] Erro: {e}")
 
 def plot_timeline(log: list, policy: str):
     """Gera timeline de acessos"""
     try:
+        print(f"  -> Gerando graph_timeline_{policy.lower()}.png...")
         steps = [e['step'] for e in log]
         lats = [e['latency'] for e in log]
-        colors = {'vm': '#2ecc71', 'host': '#3498db', 'disk': '#e74c3c'}
-        c_map = [colors[e['where']] for e in log]
+        # Mapa seguro com fallback
+        colors_map = {'vm': '#2ecc71', 'host': '#3498db', 'disk': '#e74c3c'}
+        c_map = [colors_map.get(e['where'], '#000000') for e in log]
         
         fig, ax = plt.subplots(figsize=(12, 5))
         ax.scatter(steps, lats, c=c_map, s=80, alpha=0.7, edgecolors='black')
@@ -104,7 +118,6 @@ def plot_timeline(log: list, policy: str):
         ax.set_xlabel('Passo (Sequência de Acesso)')
         ax.set_ylabel('Latência')
         
-        # Legenda Manual
         from matplotlib.patches import Patch
         legend_elements = [Patch(facecolor='#2ecc71', label='VM Hit'),
                            Patch(facecolor='#3498db', label='Host Hit'),
@@ -113,14 +126,15 @@ def plot_timeline(log: list, policy: str):
         
         plt.tight_layout()
         plt.savefig(f'graph_timeline_{policy.lower()}.png', dpi=300)
-        print(f"  [V] Gráfico salvo: graph_timeline_{policy.lower()}.png")
-        plt.close()
+        plt.close(fig)
+        print("     [✓] Salvo.")
     except Exception as e:
-        print(f"Erro ao gerar timeline de {policy}: {e}")
+        print(f"     [X] Erro: {e}")
 
 def plot_efficiency(metrics: dict):
     """Gráfico de eficiência (Stacked Bar)"""
     try:
+        print("  -> Gerando graph_efficiency.png...")
         fig, ax = plt.subplots(figsize=(10, 6))
         policies = list(metrics.keys())
         x = np.arange(len(policies))
@@ -131,19 +145,113 @@ def plot_efficiency(metrics: dict):
         
         ax.bar(x, vm_rates, label='VM Cache', color='#2ecc71')
         ax.bar(x, host_rates, bottom=vm_rates, label='Host Cache', color='#3498db')
+        # A base para o disco é a soma dos anteriores
         ax.bar(x, disk_rates, bottom=vm_rates+host_rates, label='Disco', color='#e74c3c')
         
         ax.set_ylabel('Distribuição (%)')
         ax.set_title('Eficiência de Cache', fontweight='bold')
-        ax.set_xticks(x); ax.set_xticklabels(policies)
+        ax.set_xticks(x)
+        ax.set_xticklabels(policies)
         ax.legend()
         
         plt.tight_layout()
         plt.savefig('graph_efficiency.png', dpi=300)
-        print("  [V] Gráfico salvo: graph_efficiency.png")
-        plt.close()
+        plt.close(fig)
+        print("     [✓] Salvo.")
     except Exception as e:
-        print(f"Erro ao gerar graph_efficiency: {e}")
+        print(f"     [X] Erro: {e}")
+
+def plot_contention(metrics: dict):
+    """Gráfico de contenção de locks (apenas modo concurrent)"""
+    try:
+        # Filtra apenas resultados concorrentes que tenham dados de lock
+        concurrent_metrics = {k: v for k, v in metrics.items() if v.get('lock_waits', 0) > 0}
+        
+        if not concurrent_metrics:
+            return
+        
+        print("  -> Gerando graph_contention.png...")
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
+        policies = list(concurrent_metrics.keys())
+        
+        lock_waits = [concurrent_metrics[p]['lock_waits'] for p in policies]
+        contention_times = [concurrent_metrics[p]['contention_time_ms'] for p in policies]
+        
+        ax1.bar(policies, lock_waits, color='#e67e22')
+        ax1.set_title('Número de Esperas por Lock', fontweight='bold')
+        ax1.set_ylabel('Quantidade')
+        if lock_waits:
+            ax1.bar_label(ax1.containers[0])
+        
+        ax2.bar(policies, contention_times, color='#e74c3c')
+        ax2.set_title('Tempo Total em Contenção', fontweight='bold')
+        ax2.set_ylabel('Tempo (ms)')
+        for i, v in enumerate(contention_times): 
+            ax2.text(i, v, f"{v:.2f}", ha='center', va='bottom')
+        
+        plt.tight_layout()
+        plt.savefig('graph_contention.png', dpi=300)
+        plt.close(fig)
+        print("     [✓] Salvo.")
+    except Exception as e:
+        print(f"     [X] Erro: {e}")
+
+def plot_mode_comparison(seq_metrics: dict, conc_metrics: dict):
+    """Compara Sequential vs Concurrent"""
+    try:
+        print("  -> Gerando graph_sequential_vs_concurrent.png...")
+        fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(14, 10))
+        
+        policies = list(seq_metrics.keys())
+        x = np.arange(len(policies))
+        width = 0.35
+        
+        # 1. VM Hit Rate
+        seq_vm = [seq_metrics[p]['vm_hit_rate'] for p in policies]
+        conc_vm = [conc_metrics[p]['vm_hit_rate'] for p in policies]
+        ax1.bar(x - width/2, seq_vm, width, label='Sequential', color='#3498db')
+        ax1.bar(x + width/2, conc_vm, width, label='Concurrent', color='#e74c3c')
+        ax1.set_title('VM Hit Rate (%)')
+        ax1.set_xticks(x); ax1.set_xticklabels(policies)
+        ax1.legend()
+        ax1.grid(axis='y', alpha=0.3)
+        
+        # 2. Host Hit Rate
+        seq_host = [seq_metrics[p]['host_hit_rate'] for p in policies]
+        conc_host = [conc_metrics[p]['host_hit_rate'] for p in policies]
+        ax2.bar(x - width/2, seq_host, width, label='Sequential', color='#3498db')
+        ax2.bar(x + width/2, conc_host, width, label='Concurrent', color='#e74c3c')
+        ax2.set_title('Host Hit Rate (%)')
+        ax2.set_xticks(x); ax2.set_xticklabels(policies)
+        ax2.legend()
+        ax2.grid(axis='y', alpha=0.3)
+        
+        # 3. Total Evictions
+        seq_evict = [seq_metrics[p]['total_evictions'] for p in policies]
+        conc_evict = [conc_metrics[p]['total_evictions'] for p in policies]
+        ax3.bar(x - width/2, seq_evict, width, label='Sequential', color='#3498db')
+        ax3.bar(x + width/2, conc_evict, width, label='Concurrent', color='#e74c3c')
+        ax3.set_title('Total Evictions')
+        ax3.set_xticks(x); ax3.set_xticklabels(policies)
+        ax3.legend()
+        ax3.grid(axis='y', alpha=0.3)
+        
+        # 4. Latência Média
+        seq_lat = [seq_metrics[p]['avg_latency'] for p in policies]
+        conc_lat = [conc_metrics[p]['avg_latency'] for p in policies]
+        ax4.bar(x - width/2, seq_lat, width, label='Sequential', color='#3498db')
+        ax4.bar(x + width/2, conc_lat, width, label='Concurrent', color='#e74c3c')
+        ax4.set_title('Latência Média')
+        ax4.set_xticks(x); ax4.set_xticklabels(policies)
+        ax4.legend()
+        ax4.grid(axis='y', alpha=0.3)
+        
+        plt.tight_layout()
+        plt.savefig('graph_sequential_vs_concurrent.png', dpi=300)
+        plt.close(fig)
+        print("     [✓] Salvo.")
+    except Exception as e:
+        print(f"     [X] Erro: {e}")
 
 # ==========================================
 # 2. LÓGICA DE EXECUÇÃO
@@ -152,30 +260,52 @@ def plot_efficiency(metrics: dict):
 def load_config(path: str) -> Dict:
     with open(path) as f: return json.load(f)
 
-def run_simulation(config: Dict, policy: str, output_suffix: str) -> Dict:
-    # Ajusta config para a política atual
+def run_simulation(config: Dict, policy: str, output_suffix: str, mode: str = None) -> Dict:
     config['vm_cache_policy'] = policy
     config['host_cache_policy'] = policy
+    
+    if mode:
+        config['execution_mode'] = mode
+    
     config['output_json'] = f'results_{output_suffix}.json'
     config['output_csv'] = f'results_{output_suffix}.csv'
     
-    # Cria arquivo temporário
     temp_config = f'config_temp_{output_suffix}.json'
     with open(temp_config, 'w') as f: json.dump(config, f, indent=4)
     
-    # Chama o script cache_virtual.py
-    subprocess.run([sys.executable, 'cache_virtual.py', temp_config], check=True)
-    
-    # Lê os resultados
+    # Chama o script de simulação (assume que cache_virtual.py está no mesmo diretório)
+    try:
+        subprocess.run([sys.executable, 'cache_virtual.py', temp_config], check=True)
+    except subprocess.CalledProcessError as e:
+        print(f"[ERRO CRÍTICO] A simulação falhou para {policy}. Verifique cache_virtual.py.")
+        sys.exit(1)
+        
     with open(config['output_json']) as f: results = json.load(f)
-    Path(temp_config).unlink()
+    
+    # Limpeza
+    try:
+        Path(temp_config).unlink()
+    except:
+        pass
+        
     return results
 
 def calculate_metrics(results: Dict) -> Dict:
-    vm = results['vms'][0]
+    if not results['vms']:
+        return {}
+        
+    vm = results['vms'][0] if len(results['vms']) == 1 else {
+        'accesses': sum(v['accesses'] for v in results['vms']),
+        'vm_hits': sum(v['vm_hits'] for v in results['vms']),
+        'host_hits': sum(v['host_hits'] for v in results['vms']),
+        'disk_hits': sum(v['disk_hits'] for v in results['vms']),
+        'vm_cache_info': results['vms'][0]['vm_cache_info']
+    }
+    
     host = results['host']
     total = vm['accesses']
-    return {
+    
+    metrics = {
         'total_accesses': total,
         'vm_hits': vm['vm_hits'],
         'vm_hit_rate': (vm['vm_hits'] / total * 100) if total else 0,
@@ -187,17 +317,22 @@ def calculate_metrics(results: Dict) -> Dict:
         'avg_latency': results['totals']['total_latency'] / total if total else 0,
         'total_latency': results['totals']['total_latency']
     }
+    
+    if 'lock_contention' in host:
+        metrics['lock_waits'] = host['lock_contention']['lock_waits']
+        metrics['contention_time_ms'] = host['lock_contention']['total_contention_time_ms']
+    
+    return metrics
 
 def print_clean_table(metrics: Dict[str, Dict]):
-    print("\n" + "="*65)
+    print("\n" + "="*80)
     print("RESULTADOS DA SIMULAÇÃO")
-    print("="*65)
+    print("="*80)
     
-    # Cabeçalho dinâmico
     policies = list(metrics.keys())
-    headers = "".join([f"{p:>12}" for p in policies])
-    print(f"{'Métrica':<20} {headers}")
-    print("-"*65)
+    headers = "".join([f"{p:>15}" for p in policies])
+    print(f"{'Métrica':<25} {headers}")
+    print("-"*80)
     
     row_keys = [
         ('VM Hit Rate (%)', 'vm_hit_rate', True),
@@ -208,64 +343,119 @@ def print_clean_table(metrics: Dict[str, Dict]):
         ('Latência Média', 'avg_latency', False)
     ]
     
+    if any('lock_waits' in m for m in metrics.values()):
+        row_keys.extend([
+            ('Lock Waits', 'lock_waits', False),
+            ('Contenção (ms)', 'contention_time_ms', False)
+        ])
+    
     for label, key, is_pct in row_keys:
-        row_str = f"{label:<20} "
+        row_str = f"{label:<25} "
         for p in policies:
-            val = metrics[p][key]
+            val = metrics[p].get(key, 0)
             if is_pct:
-                row_str += f"{val:>12.1f}"
-            elif key == 'avg_latency':
-                row_str += f"{val:>12.2f}"
+                row_str += f"{val:>15.1f}"
+            elif key in ['avg_latency', 'contention_time_ms']:
+                row_str += f"{val:>15.2f}"
             else:
-                row_str += f"{val:>12}"
+                row_str += f"{val:>15}"
         print(row_str)
-    print("="*65)
+    print("="*80)
 
 def main():
-    # Configuração do Argparse
     parser = argparse.ArgumentParser(description="Simulador de Cache (Benchmark)")
     parser.add_argument("config", help="Arquivo de configuração JSON")
     parser.add_argument("--all", action="store_true", help="Executa benchmark comparativo (FIFO, LRU, LFU)")
+    parser.add_argument("--compare-modes", action="store_true", help="Compara Sequential vs Concurrent")
     
     args = parser.parse_args()
     
-    base_config = load_config(args.config)
+    try:
+        base_config = load_config(args.config)
+    except FileNotFoundError:
+        print(f"Erro: Arquivo '{args.config}' não encontrado.")
+        sys.exit(1)
     
-    # Decide quais políticas rodar
-    if args.all:
+    # Modo de comparação Sequential vs Concurrent
+    if args.compare_modes:
         policies = ['FIFO', 'LRU', 'LFU']
-        print(f"Modo: Benchmark Comparativo ({', '.join(policies)})")
+        print(f"Modo: Comparação Sequential vs Concurrent ({', '.join(policies)})")
+        
+        seq_metrics = {}
+        conc_metrics = {}
+        
+        print("\n=== EXECUTANDO MODO SEQUENTIAL ===")
+        for policy in policies:
+            print(f"-> Simulando {policy} (Sequential)...")
+            results = run_simulation(base_config.copy(), policy, f"{policy.lower()}_seq", "sequential")
+            seq_metrics[policy] = calculate_metrics(results)
+        
+        print("\n=== EXECUTANDO MODO CONCURRENT ===")
+        for policy in policies:
+            print(f"-> Simulando {policy} (Concurrent)...")
+            results = run_simulation(base_config.copy(), policy, f"{policy.lower()}_conc", "concurrent")
+            conc_metrics[policy] = calculate_metrics(results)
+        
+        print("\n=== RESULTADOS SEQUENTIAL ===")
+        print_clean_table(seq_metrics)
+        
+        print("\n=== RESULTADOS CONCURRENT ===")
+        print_clean_table(conc_metrics)
+        
+        print("\nGerando gráficos comparativos...")
+        plot_mode_comparison(seq_metrics, conc_metrics)
+        plot_contention(conc_metrics)
+        
+    # Modo benchmark normal
+    elif args.all:
+        policies = ['FIFO', 'LRU', 'LFU']
+        mode = base_config.get("execution_mode", "sequential")
+        print(f"Modo: Benchmark Comparativo ({', '.join(policies)}) - {mode.upper()}")
+        
+        all_metrics = {}
+        access_logs = {}
+        
+        for policy in policies:
+            print(f"-> Simulando {policy}...")
+            results = run_simulation(base_config.copy(), policy, policy.lower())
+            all_metrics[policy] = calculate_metrics(results)
+            access_logs[policy] = results['access_log']
+        
+        print_clean_table(all_metrics)
+        
+        print("\nGerando gráficos...")
+        plot_hit_rates(all_metrics)
+        plot_latency_comparison(all_metrics)
+        plot_evictions(all_metrics)
+        plot_efficiency(all_metrics)
+        plot_contention(all_metrics)
+        
+        for policy in policies:
+            plot_timeline(access_logs[policy], policy)
+    
+    # Modo simples
     else:
-        # Pega a política definida no JSON (Padrão) ou assume FIFO se não existir
         default_policy = base_config.get("vm_cache_policy", "FIFO")
+        mode = base_config.get("execution_mode", "sequential")
         policies = [default_policy]
-        print(f"Modo: Execução Simples ({default_policy})")
-    
-    all_metrics = {}
-    access_logs = {}
-    
-    # Loop de execução
-    for policy in policies:
-        print(f"-> Simulando {policy}...")
-        # Se for modo simples, usa o nome da política; se for comparativo, usa ela mesma
-        results = run_simulation(base_config.copy(), policy, policy.lower())
-        all_metrics[policy] = calculate_metrics(results)
-        access_logs[policy] = results['access_log']
-    
-    # 1. Imprime Tabela (Dinâmica para 1 ou 3 colunas)
-    print_clean_table(all_metrics)
-    
-    # 2. Gera os Gráficos
-    print("\nGerando gráficos...")
-    # Gráficos de barra funcionam mesmo com 1 item, mas mostram só 1 barra
-    plot_hit_rates(all_metrics)
-    plot_latency_comparison(all_metrics)
-    plot_evictions(all_metrics)
-    plot_efficiency(all_metrics)
-    
-    # Gera timelines individuais
-    for policy in policies:
-        plot_timeline(access_logs[policy], policy)
+        print(f"Modo: Execução Simples ({default_policy}) - {mode.upper()}")
+        
+        all_metrics = {}
+        access_logs = {}
+        
+        results = run_simulation(base_config.copy(), default_policy, default_policy.lower())
+        all_metrics[default_policy] = calculate_metrics(results)
+        access_logs[default_policy] = results['access_log']
+        
+        print_clean_table(all_metrics)
+        
+        print("\nGerando gráficos...")
+        plot_hit_rates(all_metrics)
+        plot_latency_comparison(all_metrics)
+        plot_evictions(all_metrics)
+        plot_efficiency(all_metrics)
+        plot_contention(all_metrics)
+        plot_timeline(access_logs[default_policy], default_policy)
         
     print("\nProcesso concluído! Verifique os arquivos .png gerados.")
 
