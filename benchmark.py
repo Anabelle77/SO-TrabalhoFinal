@@ -37,7 +37,7 @@ def plot_hit_rates(metrics: dict):
         ax.grid(axis='y', alpha=0.3)
         plt.tight_layout()
         plt.savefig('graph_hit_rates.png', dpi=300)
-        plt.close(fig)
+        print("     [✓] Salvo.")
     except Exception as e:
         print(f"     Erro: {e}")
 
@@ -135,7 +135,10 @@ def plot_efficiency(metrics: dict):
 
 def plot_contention(metrics: dict):
     try:
-        concurrent_metrics = metrics
+        concurrent_metrics = {k: v for k, v in metrics.items() if v.get('lock_waits', 0) > 0}
+        
+        if not concurrent_metrics:
+            return
         
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
         policies = list(concurrent_metrics.keys())
@@ -158,8 +161,62 @@ def plot_contention(metrics: dict):
         plt.tight_layout()
         plt.savefig('graph_contention.png', dpi=300)
         plt.close(fig)
+        print("     [✓] Salvo.")
     except Exception as e:
-        print(f"     Erro: {e}")
+        print(f"     [X] Erro: {e}")
+
+def plot_mode_comparison(seq_metrics: dict, conc_metrics: dict):
+    """Compara Sequential vs Concurrent"""
+    try:
+        print("  -> Gerando graph_sequential_vs_concurrent.png...")
+        fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(14, 10))
+        
+        policies = list(seq_metrics.keys())
+        x = np.arange(len(policies))
+        width = 0.35
+        
+        seq_vm = [seq_metrics[p]['vm_hit_rate'] for p in policies]
+        conc_vm = [conc_metrics[p]['vm_hit_rate'] for p in policies]
+        ax1.bar(x - width/2, seq_vm, width, label='Sequential', color='#3498db')
+        ax1.bar(x + width/2, conc_vm, width, label='Concurrent', color='#e74c3c')
+        ax1.set_title('VM Hit Rate (%)')
+        ax1.set_xticks(x); ax1.set_xticklabels(policies)
+        ax1.legend()
+        ax1.grid(axis='y', alpha=0.3)
+        
+        seq_host = [seq_metrics[p]['host_hit_rate'] for p in policies]
+        conc_host = [conc_metrics[p]['host_hit_rate'] for p in policies]
+        ax2.bar(x - width/2, seq_host, width, label='Sequential', color='#3498db')
+        ax2.bar(x + width/2, conc_host, width, label='Concurrent', color='#e74c3c')
+        ax2.set_title('Host Hit Rate (%)')
+        ax2.set_xticks(x); ax2.set_xticklabels(policies)
+        ax2.legend()
+        ax2.grid(axis='y', alpha=0.3)
+        
+        seq_evict = [seq_metrics[p]['total_evictions'] for p in policies]
+        conc_evict = [conc_metrics[p]['total_evictions'] for p in policies]
+        ax3.bar(x - width/2, seq_evict, width, label='Sequential', color='#3498db')
+        ax3.bar(x + width/2, conc_evict, width, label='Concurrent', color='#e74c3c')
+        ax3.set_title('Total Evictions')
+        ax3.set_xticks(x); ax3.set_xticklabels(policies)
+        ax3.legend()
+        ax3.grid(axis='y', alpha=0.3)
+        
+        seq_lat = [seq_metrics[p]['avg_latency'] for p in policies]
+        conc_lat = [conc_metrics[p]['avg_latency'] for p in policies]
+        ax4.bar(x - width/2, seq_lat, width, label='Sequential', color='#3498db')
+        ax4.bar(x + width/2, conc_lat, width, label='Concurrent', color='#e74c3c')
+        ax4.set_title('Latência Média')
+        ax4.set_xticks(x); ax4.set_xticklabels(policies)
+        ax4.legend()
+        ax4.grid(axis='y', alpha=0.3)
+        
+        plt.tight_layout()
+        plt.savefig('graph_sequential_vs_concurrent.png', dpi=300)
+        plt.close(fig)
+        print("     [✓] Salvo.")
+    except Exception as e:
+        print(f"     [X] Erro: {e}")
 
 def load_config(path: str) -> Dict:
     with open(path) as f: return json.load(f)
@@ -272,7 +329,36 @@ def main():
         print(f"Erro: Arquivo '{args.config}' não encontrado.")
         sys.exit(1)
     
-    if args.all:
+    if args.compare_modes:
+        policies = ['FIFO', 'LRU', 'LFU']
+        print(f"Modo: Comparação Sequential vs Concurrent ({', '.join(policies)})")
+        
+        seq_metrics = {}
+        conc_metrics = {}
+        
+        print("\n=== EXECUTANDO MODO SEQUENTIAL ===")
+        for policy in policies:
+            print(f"-> Simulando {policy} (Sequential)...")
+            results = run_simulation(base_config.copy(), policy, f"{policy.lower()}_seq", "sequential")
+            seq_metrics[policy] = calculate_metrics(results)
+        
+        print("\n=== EXECUTANDO MODO CONCURRENT ===")
+        for policy in policies:
+            print(f"-> Simulando {policy} (Concurrent)...")
+            results = run_simulation(base_config.copy(), policy, f"{policy.lower()}_conc", "concurrent")
+            conc_metrics[policy] = calculate_metrics(results)
+        
+        print("\n=== RESULTADOS SEQUENTIAL ===")
+        print_clean_table(seq_metrics)
+        
+        print("\n=== RESULTADOS CONCURRENT ===")
+        print_clean_table(conc_metrics)
+        
+        print("\nGerando gráficos comparativos...")
+        plot_mode_comparison(seq_metrics, conc_metrics)
+        plot_contention(conc_metrics)
+        
+    elif args.all:
         policies = ['FIFO', 'LRU', 'LFU']
         print(f"Modo: Benchmark Comparativo ({', '.join(policies)})")
         

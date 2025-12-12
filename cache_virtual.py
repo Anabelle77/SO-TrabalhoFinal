@@ -7,8 +7,8 @@ import time
 from queue import Queue
 from collections import OrderedDict, defaultdict, deque
 from typing import Optional, List, Dict, Tuple
-SIMULATE_SLEEP = False
 
+SIMULATE_SLEEP = False
 
 class CacheBase:
     def __init__(self, capacity: int, policy: str):
@@ -16,19 +16,15 @@ class CacheBase:
         self.policy = policy.upper()
         self.evictions = 0
         self.insertions = 0
-        self.lock = threading.RLock()
-
+        self.lock = threading.RLock() 
     def get(self, key: str) -> bool:
         raise NotImplementedError
-
     def put(self, key: str):
         raise NotImplementedError
-
     def info(self) -> Dict:
         with self.lock:
             return {"capacity": self.capacity, "policy": self.policy,
                     "evictions": self.evictions, "insertions": self.insertions}
-
 
 class LRUCache(CacheBase):
     def __init__(self, capacity: int):
@@ -55,17 +51,14 @@ class LRUCache(CacheBase):
             self.od[key] = True
             self.insertions += 1
 
-
 class FIFOCache(CacheBase):
     def __init__(self, capacity: int):
         super().__init__(capacity, "FIFO")
         self.queue = deque()
         self.set = set()
-
     def get(self, key):
         with self.lock:
             return key in self.set
-
     def put(self, key):
         with self.lock:
             if self.capacity == 0:
@@ -80,7 +73,6 @@ class FIFOCache(CacheBase):
             self.set.add(key)
             self.insertions += 1
 
-
 class LFUCache(CacheBase):
     def __init__(self, capacity: int):
         super().__init__(capacity, "LFU")
@@ -88,7 +80,6 @@ class LFUCache(CacheBase):
         self.storage = set()
         self.timer = 0
         self.last_access = {}
-
     def get(self, key):
         with self.lock:
             if key in self.storage:
@@ -97,31 +88,26 @@ class LFUCache(CacheBase):
                 self.last_access[key] = self.timer
                 return True
             return False
-
     def put(self, key):
         with self.lock:
             if self.capacity == 0:
                 return
-
             if key in self.storage:
                 self.freq[key] += 1
                 self.timer += 1
                 self.last_access[key] = self.timer
                 return
-
             if len(self.storage) >= self.capacity:
                 victim = min(self.storage, key=lambda k: (self.freq[k], self.last_access[k]))
                 self.storage.remove(victim)
                 del self.freq[victim]
                 del self.last_access[victim]
                 self.evictions += 1
-
             self.storage.add(key)
             self.freq[key] = 1
             self.timer += 1
             self.last_access[key] = self.timer
             self.insertions += 1
-
 
 def make_cache(capacity: int, policy: str) -> CacheBase:
     p = policy.upper()
@@ -133,7 +119,6 @@ def make_cache(capacity: int, policy: str) -> CacheBase:
         return LFUCache(capacity)
     else:
         raise ValueError(f"Unknown cache policy: {policy}")
-
 
 class Disk:
     def __init__(self, latency: int):
@@ -148,7 +133,6 @@ class Disk:
             time.sleep(self.latency / 1000.0)
         return (f"DATA({file_id})", self.latency)
 
-
 class Hypervisor:
     def __init__(self, host_cache: CacheBase, host_latency: int, disk: Disk):
         self.host_cache = host_cache
@@ -159,17 +143,15 @@ class Hypervisor:
         self.lock = threading.Lock()
         self.contention_time = 0.0
         self.lock_waits = 0
-
     def fetch(self, file_id: str) -> Tuple[str, int]:
         lock_start = time.time()
         self.host_cache.lock.acquire()
-        
         lock_wait = time.time() - lock_start
+
         if lock_wait > 1e-6:
             with self.lock:
                 self.lock_waits += 1
                 self.contention_time += lock_wait
-
         try:
             if self.host_cache.get(file_id):
                 with self.lock:
@@ -177,7 +159,6 @@ class Hypervisor:
                 if SIMULATE_SLEEP:
                     time.sleep(self.host_latency / 1000.0)
                 return ("host", self.host_latency)
-
             content, dlat = self.disk.fetch(file_id)
             self.host_cache.put(file_id)
             with self.lock:
@@ -188,7 +169,6 @@ class Hypervisor:
                 self.host_cache.lock.release()
             except RuntimeError:
                 print("[WARN] host_cache.lock.release() falhou")
-
 
 class VM:
     def __init__(self, vm_id: int, vm_cache: CacheBase, vm_latency: int, hypervisor: Hypervisor):
@@ -202,7 +182,6 @@ class VM:
         self.disk_hits = 0
         self.latency = 0.0
         self.lock = threading.Lock()
-
         self.thread: Optional[threading.Thread] = None
         self.request_queue: Queue = Queue()
         self.access_log: List[Dict] = []
@@ -210,7 +189,6 @@ class VM:
     def access(self, file_id: str, promote_to_vm: bool = True) -> Tuple[str, int]:
         with self.lock:
             self.accesses += 1
-
         if self.cache.get(file_id):
             with self.lock:
                 self.vm_hits += 1
@@ -218,10 +196,8 @@ class VM:
             if SIMULATE_SLEEP:
                 time.sleep(self.vm_latency / 1000.0)
             return ("vm", self.vm_latency)
-
         where, latency = self.hypervisor.fetch(file_id)
         total_latency = latency + self.vm_latency
-
         with self.lock:
             if where == "host":
                 self.host_hits += 1
@@ -230,20 +206,17 @@ class VM:
             if promote_to_vm:
                 self.cache.put(file_id)
             self.latency += total_latency
-
         if SIMULATE_SLEEP:
             time.sleep(self.vm_latency / 1000.0)
-
         return (where, total_latency)
 
     def process_requests(self):
 
         thread_name = threading.current_thread().name
-
         while True:
             step, file_id = self.request_queue.get()
             try:
-                if step is None and file_id is None: # Sentinel
+                if step is None and file_id is None:
                     break
                 
                 where, lat = self.access(file_id)
@@ -261,8 +234,7 @@ class VM:
                 print(f"[ERRO] VM-{self.vm_id} erro: {e}")
             finally:
                 self.request_queue.task_done()
-
-    def start_worker(self):
+    def start_concurrent(self):
         if self.thread and self.thread.is_alive():
             return
         self.thread = threading.Thread(
@@ -271,16 +243,13 @@ class VM:
             daemon=False
         )
         self.thread.start()
-
     def stop_and_join(self, timeout: float = 5.0):
         if self.thread and self.thread.is_alive():
             self.thread.join(timeout=timeout)
             if self.thread.is_alive():
-                print(f"[AVISO] Thread VM-{self.vm_id} não finalizou.")
-
+                print(f"[AVISO] Thread VM-{self.vm_id} não finalizou após {timeout}s")
     def enqueue_access(self, step: Optional[int], file_id: Optional[str]):
         self.request_queue.put((step, file_id))
-
     def stats(self) -> Dict:
         with self.lock:
             return {
@@ -293,22 +262,19 @@ class VM:
                 "vm_cache_info": self.cache.info()
             }
 
-
 class Simulator:
     def __init__(self, cfg: Dict):
         random.seed(cfg.get("seed", 0))
         self.cfg = cfg
-
+        self.execution_mode = cfg.get("execution_mode", "sequential")
         self.disk = Disk(cfg["disk_latency"])
         self.host_cache = make_cache(cfg["host_cache_size"], cfg["host_cache_policy"])
         self.hypervisor = Hypervisor(self.host_cache, cfg["host_latency"], self.disk)
         self.vms: List[VM] = []
-
         for vm_id in range(cfg["vm_count"]):
             vm_cache = make_cache(cfg["vm_cache_size"], cfg["vm_cache_policy"])
             vm = VM(vm_id, vm_cache, cfg["vm_latency"], self.hypervisor)
             self.vms.append(vm)
-
         self.workload = self._build_workload(cfg["workload"])
         self.access_log: List[Dict] = []
 
@@ -329,33 +295,56 @@ class Simulator:
         else:
             raise ValueError("Unknown workload mode")
 
-    def run(self):
-        print(f"[SIMULADOR] Iniciando {len(self.vms)} VMs.")
-        start_time = time.time()
+    def run_sequential(self):
+        print(f"[SIMULADOR] Modo: SEQUENCIAL")
+        for op in self.workload:
+            step = op.get("step")
+            vm_id = int(op["vm"])
+            file_id = str(op["file"])
+            vm = self.vms[vm_id]
+            where, lat = vm.access(file_id)
+            self.access_log.append({
+                "step": step,
+                "vm": vm_id,
+                "file": file_id,
+                "where": where,
+                "latency": lat,
+                "vm_cache_size": vm.cache.capacity,
+                "host_cache_size": self.host_cache.capacity,
+                "thread_id": None
+            })
 
+    def run_concurrent(self):
+        print(f"[SIMULADOR] Modo: CONCORRENTE ({len(self.vms)} VMs em paralelo)")
         for vm in self.vms:
-            vm.start_worker()
-
-        print(f"[SIMULADOR] Distribuindo {len(self.workload)} acessos.\n")
+            vm.start_concurrent()
+        print(f"[SIMULADOR] Distribuindo {len(self.workload)} acessos.")
         for op in self.workload:
             step = op.get("step")
             vm_id = int(op["vm"])
             file_id = str(op["file"])
             self.vms[vm_id].enqueue_access(step, file_id)
-
         for vm in self.vms:
             vm.enqueue_access(None, None)
-
+        print(f"[SIMULADOR] Aguardando processamento (queue.join)...")
         for vm in self.vms:
             vm.request_queue.join()
-
         for vm in self.vms:
             vm.stop_and_join(timeout=5.0)
-
+        print(f"[SIMULADOR] Consolidando logs.")
         for vm in self.vms:
             self.access_log.extend(vm.access_log)
-        self.access_log.sort(key=lambda x: (x["step"] if x["step"] is not None else -1, x["vm"]))
 
+        self.access_log.sort(key=lambda x: (x["step"] if x["step"] is not None else -1, x["vm"]))
+        print(f"[SIMULADOR] Contenção detectada: {self.hypervisor.lock_waits} esperas por lock")
+        print(f"[SIMULADOR] Tempo total em contenção: {self.hypervisor.contention_time*1000:.2f}ms")
+
+    def run(self):
+        start_time = time.time()
+        if self.execution_mode == "concurrent":
+            self.run_concurrent()
+        else:
+            self.run_sequential()
         elapsed = time.time() - start_time
         print(f"[SIMULADOR] Tempo de execução: {elapsed:.3f}s")
         print(f"[SIMULADOR] Contenção detectada: {self.hypervisor.lock_waits} esperas por lock")
@@ -396,11 +385,9 @@ class Simulator:
                     row_out = {k: row.get(k, "") for k in fieldnames}
                     writer.writerow(row_out)
 
-
 def load_config(path: str) -> Dict:
     with open(path, "r") as f:
         return json.load(f)
-
 
 def main():
     if len(sys.argv) < 2:
@@ -410,7 +397,6 @@ def main():
     sim = Simulator(cfg)
     sim.run()
     sim.save_outputs(cfg.get("output_json", "results.json"), cfg.get("output_csv", "results.csv"))
-
 
 if __name__ == "__main__":
     main()
