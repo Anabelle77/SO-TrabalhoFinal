@@ -4,7 +4,7 @@ import csv
 import random
 import threading
 import time
-from queue import Queue, Empty
+from queue import Queue
 from collections import OrderedDict, defaultdict, deque
 from typing import Optional, List, Dict, Tuple
 
@@ -168,7 +168,7 @@ class Hypervisor:
             try:
                 self.host_cache.lock.release()
             except RuntimeError:
-                print("[WARN] host_cache.lock.release() falhou - provavelmente já liberado")
+                print("[WARN] host_cache.lock.release() falhou")
 
 class VM:
     def __init__(self, vm_id: int, vm_cache: CacheBase, vm_latency: int, hypervisor: Hypervisor):
@@ -211,6 +211,7 @@ class VM:
         return (where, total_latency)
 
     def process_requests(self):
+
         thread_name = threading.current_thread().name
         while True:
             step, file_id = self.request_queue.get()
@@ -230,7 +231,7 @@ class VM:
                     "thread_id": thread_name
                 })
             except Exception as e:
-                print(f"[ERRO] VM-{self.vm_id} falhou ao processar arquivo {file_id}: {e}")
+                print(f"[ERRO] VM-{self.vm_id} erro: {e}")
             finally:
                 self.request_queue.task_done()
     def start_concurrent(self):
@@ -346,6 +347,8 @@ class Simulator:
             self.run_sequential()
         elapsed = time.time() - start_time
         print(f"[SIMULADOR] Tempo de execução: {elapsed:.3f}s")
+        print(f"[SIMULADOR] Contenção detectada: {self.hypervisor.lock_waits} esperas por lock")
+        print(f"[SIMULADOR] Tempo total em contenção: {self.hypervisor.contention_time*1000:.2f}ms")
 
     def collect_results(self) -> Dict:
         vms_stats = [vm.stats() for vm in self.vms]
@@ -362,7 +365,7 @@ class Simulator:
         totals = {
             "total_accesses": len(self.workload),
             "total_latency": sum(a["latency"] for a in self.access_log),
-            "execution_mode": self.execution_mode
+            "execution_mode": "concurrent"
         }
         return {"vms": vms_stats, "host": host_metrics, "totals": totals, "access_log": self.access_log}
 
@@ -373,9 +376,9 @@ class Simulator:
                 json.dump(results, f, indent=4)
         if csv_path:
             with open(csv_path, "w", newline="") as f:
-                fieldnames = ["step", "vm", "file", "where", "latency", "vm_cache_size", "host_cache_size"]
-                if self.execution_mode == "concurrent":
-                    fieldnames.append("thread_id")
+                # Campo thread_id agora é padrão
+                fieldnames = ["step", "vm", "file", "where", "latency", 
+                              "vm_cache_size", "host_cache_size", "thread_id"]
                 writer = csv.DictWriter(f, fieldnames=fieldnames)
                 writer.writeheader()
                 for row in results["access_log"]:
